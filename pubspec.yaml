@@ -1,0 +1,24 @@
+name: dont_touch_the_future
+description: "DON'T TOUCH THE FUTURE - Your past is chasing you. A minimalist arcade game built with Flutter and Flame."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+# NOTE: flame and shared_preferences are intentionally NOT pinned here.
+# Run `flutter pub add flame shared_preferences` so pub resolves versions
+# that are compatible with YOUR installed Flutter SDK.
+dependencies:
+  flame: ^1.38.2
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.5.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: any
+
+flutter:
+  uses-material-design: true
