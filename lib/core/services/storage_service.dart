@@ -1,7 +1,9 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../features/statistics/services/stats_repository.dart';
+
 /// Thin wrapper over SharedPreferences. All persisted keys live here.
-class StorageService {
+class StorageService implements StatsStore {
   StorageService._(this._prefs);
 
   final SharedPreferences _prefs;
@@ -19,15 +21,23 @@ class StorageService {
       StorageService._(await SharedPreferences.getInstance());
 
   // --- Stats ---
+  @override
   int get bestScore => _prefs.getInt(_kBestScore) ?? 0;
+  @override
   double get bestSurvivalSeconds => _prefs.getDouble(_kBestSurvivalSeconds) ?? 0;
+  @override
   int get gamesPlayed => _prefs.getInt(_kGamesPlayed) ?? 0;
+  @override
   int get totalShards => _prefs.getInt(_kTotalShards) ?? 0;
 
+  @override
   Future<void> setBestScore(int v) => _prefs.setInt(_kBestScore, v);
+  @override
   Future<void> setBestSurvivalSeconds(double v) =>
       _prefs.setDouble(_kBestSurvivalSeconds, v);
+  @override
   Future<void> setGamesPlayed(int v) => _prefs.setInt(_kGamesPlayed, v);
+  @override
   Future<void> setTotalShards(int v) => _prefs.setInt(_kTotalShards, v);
 
   // --- Settings (defaults: sound/music/haptics on, reduced motion off) ---

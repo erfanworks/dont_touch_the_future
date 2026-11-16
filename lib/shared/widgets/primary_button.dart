@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_scope.dart';
 import '../../core/constants/color_constants.dart';
 
 /// Main call-to-action button with a subtle press-scale feedback.
@@ -22,7 +23,12 @@ class _PrimaryButtonState extends State<PrimaryButton> {
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
-      onTap: widget.onPressed,
+      onTap: () {
+        final scope = AppScope.maybeOf(context);
+        scope?.audio.button();
+        scope?.haptics.light();
+        widget.onPressed();
+      },
       child: AnimatedScale(
         scale: _pressed ? 0.96 : 1.0,
         duration: const Duration(milliseconds: 90),
