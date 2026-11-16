@@ -10,10 +10,11 @@ environment:
 # Run `flutter pub add flame shared_preferences` so pub resolves versions
 # that are compatible with YOUR installed Flutter SDK.
 dependencies:
-  flame: ^1.38.2
   flutter:
     sdk: flutter
-  shared_preferences: ^2.5.6
+  flame: ^1.18.0
+  shared_preferences: ^2.2.2
+  flame_audio: ^2.12.2
 
 dev_dependencies:
   flutter_test:
@@ -22,3 +23,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/audio/
