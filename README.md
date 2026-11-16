@@ -1,15 +1,14 @@
 # DON'T TOUCH THE FUTURE
 Your past is chasing you. Minimalist arcade game (Flutter + Flame).
 
-## Phase 1 status: Foundation
-- Project structure, design tokens, theme, routing
-- Storage + settings services (SharedPreferences)
-- Game state machine (pure Dart) and MovementSample model
-- Splash -> Home -> Gameplay (empty Flame arena)
+## Phase 2 status: Core gameplay (plain visuals)
+- GameSession (pure Dart): clock, player, echo, shards, obstacles, scoring, state
+- MovementHistory ring buffer + exact 3 s Future Echo (interpolated)
+- Difficulty phases, safe SpawnManager, circle collisions
+- Stats persistence (best score/time, games, shards)
+- Basic HUD / Pause / Game Over overlays (polish in Phase 3)
 
-## Setup
-1. `flutter create --org com.yourname --project-name dont_touch_the_future .`
-2. `flutter pub add flame shared_preferences`
-3. `flutter pub get`
-4. `flutter analyze && flutter test`
-5. `flutter run`
+## Run
+1. `flutter pub get`
+2. `flutter analyze && flutter test`
+3. `flutter run`
