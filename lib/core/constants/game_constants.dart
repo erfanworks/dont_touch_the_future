@@ -12,6 +12,9 @@ class GameConstants {
   static const double maxWorldUnit = 1.6;
   static const double arenaPadding = 14;
 
+  /// Logical px reserved under the status bar for the HUD (score + pause).
+  static const double hudReservedHeight = 92;
+
   // --- Future Echo ---
   /// The ghost replays the player's path exactly this many seconds later.
   static const double echoDelaySeconds = 3.0;
