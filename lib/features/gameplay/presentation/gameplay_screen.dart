@@ -32,6 +32,19 @@ class _GameplayScreenState extends State<GameplayScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final insets = MediaQuery.viewPaddingOf(context);
+    _game.setSafeInsets(
+      top: insets.top,
+      bottom: insets.bottom,
+      left: insets.left,
+      right: insets.right,
+    );
+    _game.systemReducedMotion = MediaQuery.disableAnimationsOf(context);
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Android back button: pause while playing, otherwise leave.
     return PopScope(
