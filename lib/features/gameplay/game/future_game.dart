@@ -57,6 +57,17 @@ class FutureGame extends FlameGame {
   int _hintKey = -1;
   double _bannerLeft = 0;
 
+  // Device safe-area insets (logical px), supplied by GameplayScreen.
+  double _insetTop = 0;
+  double _insetBottom = 0;
+  double _insetLeft = 0;
+  double _insetRight = 0;
+  double _width = 0;
+  double _height = 0;
+
+  /// True when the OS "reduce motion / remove animations" setting is on.
+  bool systemReducedMotion = false;
+
   @override
   Color backgroundColor() => AppColors.background;
 
@@ -78,7 +89,40 @@ class FutureGame extends FlameGame {
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
-    session.configureArena(size.x, size.y);
+    _width = size.x;
+    _height = size.y;
+    _applyArena();
+  }
+
+  void setSafeInsets({
+    required double top,
+    required double bottom,
+    required double left,
+    required double right,
+  }) {
+    if (top == _insetTop &&
+        bottom == _insetBottom &&
+        left == _insetLeft &&
+        right == _insetRight) {
+      return;
+    }
+    _insetTop = top;
+    _insetBottom = bottom;
+    _insetLeft = left;
+    _insetRight = right;
+    _applyArena();
+  }
+
+  void _applyArena() {
+    if (_width <= 0 || _height <= 0) return;
+    session.configureArena(
+      _width,
+      _height,
+      insetTop: _insetTop,
+      insetBottom: _insetBottom,
+      insetLeft: _insetLeft,
+      insetRight: _insetRight,
+    );
     _syncNotifiers();
   }
 
@@ -86,7 +130,7 @@ class FutureGame extends FlameGame {
   void update(double dt) {
     session.update(dt);
 
-    effects.reducedMotion = settings.reducedMotion;
+    effects.reducedMotion = settings.reducedMotion || systemReducedMotion;
     if (session.isPlaying && session.echoActive) {
       effects.emitTrail(session.echoX, session.echoY, dt);
     }
@@ -223,11 +267,31 @@ class FutureGame extends FlameGame {
 
   Future<void> _finishRun() async {
     final runId = session.runId;
-    final summary = await statsRepository.recordRun(
-      score: session.score,
-      survivalSeconds: session.scoring.survivalSeconds,
-      shards: session.scoring.shardsCollected,
-    );
+    final score = session.score;
+    final seconds = session.scoring.survivalSeconds;
+    final shards = session.scoring.shardsCollected;
+
+    RunSummary summary;
+    try {
+      summary = await statsRepository.recordRun(
+        score: score,
+        survivalSeconds: seconds,
+        shards: shards,
+      );
+    } catch (_) {
+      // Saving failed (e.g. storage error): still show the Game Over screen.
+      final bestScore = statsRepository.bestScore;
+      final bestTime = statsRepository.bestSurvivalSeconds;
+      summary = RunSummary(
+        score: score,
+        survivalSeconds: seconds,
+        shards: shards,
+        bestScore: bestScore > score ? bestScore : score,
+        bestSurvivalSeconds: bestTime > seconds ? bestTime : seconds,
+        isNewBestScore: false,
+        isNewBestTime: false,
+      );
+    }
     // Let the impact animation play before the Game Over screen appears.
     await Future<void>.delayed(const Duration(milliseconds: 650));
     // The player may have restarted while we were waiting.
