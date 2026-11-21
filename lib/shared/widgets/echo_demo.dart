@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../app/app_scope.dart';
+import 'reduced_motion_loop.dart';
 import '../../core/constants/color_constants.dart';
 
 /// Glowing dot used by the animated demos.
@@ -40,24 +40,14 @@ class EchoDemo extends StatefulWidget {
 }
 
 class _EchoDemoState extends State<EchoDemo>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, ReducedMotionLoop {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: Duration(milliseconds: (widget.period * 1000).round()),
   );
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduced = AppScope.maybeOf(context)?.settings.reducedMotion ?? false;
-    if (reduced) {
-      _controller
-        ..stop()
-        ..value = 0.4;
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
-  }
+  AnimationController get loopController => _controller;
 
   @override
   void dispose() {
