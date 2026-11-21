@@ -2,11 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../app/app_routes.dart';
-import '../../../app/app_scope.dart';
 import '../../../core/constants/color_constants.dart';
 import '../../../shared/widgets/echo_demo.dart';
 import '../../../shared/widgets/primary_button.dart';
+import '../../../shared/widgets/reduced_motion_loop.dart';
 
 enum _DemoKind { drag, avoid }
 
@@ -25,7 +24,7 @@ class TutorialScreen extends StatefulWidget {
 }
 
 class _TutorialScreenState extends State<TutorialScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, ReducedMotionLoop {
   static const List<_Step> _steps = [
     _Step('DRAG TO MOVE',
         'Touch and drag anywhere. Your circle follows your finger.'),
@@ -45,17 +44,10 @@ class _TutorialScreenState extends State<TutorialScreen>
   bool get _isLast => _index == _steps.length - 1;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduced = AppScope.maybeOf(context)?.settings.reducedMotion ?? false;
-    if (reduced) {
-      _loop
-        ..stop()
-        ..value = 0.5;
-    } else if (!_loop.isAnimating) {
-      _loop.repeat();
-    }
-  }
+  AnimationController get loopController => _loop;
+
+  @override
+  double get restValue => 0.5;
 
   @override
   void dispose() {
@@ -64,8 +56,7 @@ class _TutorialScreenState extends State<TutorialScreen>
     super.dispose();
   }
 
-  void _start() =>
-      Navigator.of(context).pushReplacementNamed(AppRoutes.gameplay);
+  void _start() => Navigator.of(context).pop(true);
 
   void _next() => _pages.nextPage(
         duration: const Duration(milliseconds: 300),
