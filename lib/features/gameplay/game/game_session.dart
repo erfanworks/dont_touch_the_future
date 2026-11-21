@@ -113,6 +113,8 @@ class GameSession {
   int _staticCount = 0;
   int _movingCount = 0;
   bool _echoActive = false;
+  ({double w, double h, double top, double bottom, double left, double right})?
+      _pendingLayout;
 
   GameStatus get status => _machine.status;
   bool get isPlaying => _machine.isPlaying;
@@ -137,25 +139,65 @@ class GameSession {
 
   // ---------------------------------------------------------------- setup
 
-  /// Called with the real canvas size. Moves initializing -> ready.
-  /// Ignored while a run is in progress (portrait-locked game).
-  void configureArena(double width, double height) {
+  /// Called with the real canvas size and the device safe-area insets.
+  /// Moves initializing -> ready. While a run is playing, paused or over, the
+  /// layout is remembered and applied on the next [reset], so a resize can
+  /// never wipe a running game or the Game Over scene.
+  void configureArena(
+    double width,
+    double height, {
+    double insetTop = 0,
+    double insetBottom = 0,
+    double insetLeft = 0,
+    double insetRight = 0,
+  }) {
     if (width <= 0 || height <= 0) return;
+    final layout = (
+      w: width,
+      h: height,
+      top: insetTop,
+      bottom: insetBottom,
+      left: insetLeft,
+      right: insetRight,
+    );
     final s = _machine.status;
-    if (s == GameStatus.playing || s == GameStatus.paused) return;
+    if (s == GameStatus.playing ||
+        s == GameStatus.paused ||
+        s == GameStatus.gameOver) {
+      _pendingLayout = layout;
+      return;
+    }
+    _applyLayout(layout);
+    if (s == GameStatus.initializing) {
+      _machine.transitionTo(GameStatus.ready);
+    }
+    _resetWorld();
+  }
 
-    arenaWidth = width;
-    arenaHeight = height;
-    final raw = width / GameConstants.designWidth;
+  /// The arena starts below the HUD band so the score never hides gameplay,
+  /// and stays clear of notches and gesture bars.
+  void _applyLayout(
+    ({
+      double w,
+      double h,
+      double top,
+      double bottom,
+      double left,
+      double right
+    }) l,
+  ) {
+    arenaWidth = l.w;
+    arenaHeight = l.h;
+    final raw = l.w / GameConstants.designWidth;
     unit = raw < GameConstants.minWorldUnit
         ? GameConstants.minWorldUnit
         : (raw > GameConstants.maxWorldUnit ? GameConstants.maxWorldUnit : raw);
 
     final pad = GameConstants.arenaPadding * unit;
-    arenaLeft = pad;
-    arenaTop = pad;
-    arenaRight = width - pad;
-    arenaBottom = height - pad;
+    arenaLeft = pad + l.left;
+    arenaRight = l.w - pad - l.right;
+    arenaTop = l.top + GameConstants.hudReservedHeight;
+    arenaBottom = l.h - pad - l.bottom;
 
     final r = playerRadius;
     player.configure(
@@ -168,11 +210,6 @@ class GameSession {
       maxX: arenaRight - r,
       maxY: arenaBottom - r,
     );
-
-    if (s == GameStatus.initializing) {
-      _machine.transitionTo(GameStatus.ready);
-    }
-    _resetWorld();
   }
 
   void _resetWorld() {
@@ -192,7 +229,7 @@ class GameSession {
     phase = DifficultyPhase.awakening;
     player.reset(
       (arenaLeft + arenaRight) / 2,
-      arenaHeight * GameConstants.playerStartYFraction,
+      arenaTop + (arenaBottom - arenaTop) * GameConstants.playerStartYFraction,
     );
     runId++;
   }
@@ -220,6 +257,11 @@ class GameSession {
     if (_machine.status != GameStatus.ready &&
         !_machine.transitionTo(GameStatus.ready)) {
       return false;
+    }
+    final pending = _pendingLayout;
+    if (pending != null) {
+      _pendingLayout = null;
+      _applyLayout(pending);
     }
     _resetWorld();
     return true;
