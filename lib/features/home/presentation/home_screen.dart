@@ -21,6 +21,17 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _openTutorial() async {
+    // Untyped on purpose: routes are PageRouteBuilder<void>.
+    final result = await Navigator.of(context).pushNamed(AppRoutes.tutorial);
+    if (!mounted) return;
+    if (result == true) {
+      await _open(AppRoutes.gameplay);
+    } else {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
@@ -107,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   TextButton.icon(
-                    onPressed: () => _open(AppRoutes.tutorial),
+                    onPressed: _openTutorial,
                     icon: const Icon(Icons.help_outline_rounded, size: 18),
                     label: const Text(
                       'HOW TO PLAY',
