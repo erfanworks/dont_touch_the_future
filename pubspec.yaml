@@ -1,7 +1,7 @@
 name: dont_touch_the_future
 description: "DON'T TOUCH THE FUTURE - Your past is chasing you. A minimalist arcade game built with Flutter and Flame."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.5.0+5
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -20,8 +20,24 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: any
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
 
 flutter:
   uses-material-design: true
   assets:
     - assets/audio/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#090B12"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+
+flutter_native_splash:
+  color: "#090B12"
+  android_12:
+    color: "#090B12"
+

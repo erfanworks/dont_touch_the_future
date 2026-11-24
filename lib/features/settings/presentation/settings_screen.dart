@@ -109,8 +109,8 @@ class SettingsScreen extends StatelessWidget {
                       title: 'ABOUT GAME',
                       onTap: () => _showInfo(
                         context,
-                        "DON'T TOUCH THE FUTURE",
-                        'Version 0.3.0\n\nYour past is chasing you.\n\n'
+                        'PAST TENSE',
+                        'Version 0.5.0\n\nYour past is chasing you.\n\n'
                             'Survive by avoiding the echo of your own movement.',
                       ),
                     ),
