@@ -67,14 +67,14 @@ class _HomeScreenState extends State<HomeScreen> {
               // Center: animated mechanic + title
               const Expanded(flex: 4, child: EchoDemo()),
               const Text(
-                "DON'T TOUCH\nTHE FUTURE",
+                'PAST\nTENSE',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppColors.primaryText,
-                  fontSize: 34,
+                  fontSize: 46,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 4,
-                  height: 1.2,
+                  letterSpacing: 8,
+                  height: 1.1,
                 ),
               ),
               const SizedBox(height: 14),
