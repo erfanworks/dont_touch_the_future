@@ -59,7 +59,7 @@ class DontTouchTheFutureApp extends StatelessWidget {
       audio: audio,
       haptics: haptics,
       child: MaterialApp(
-        title: "DON'T TOUCH THE FUTURE",
+        title: 'PAST TENSE',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark,
         initialRoute: AppRoutes.splash,
