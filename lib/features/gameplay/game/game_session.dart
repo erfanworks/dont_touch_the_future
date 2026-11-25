@@ -10,7 +10,14 @@ import 'systems/player_motion.dart';
 import 'systems/scoring_system.dart';
 import 'systems/spawn_manager.dart';
 
-enum GameEventType { shardCollected, milestone, phaseChanged, died }
+enum GameEventType {
+  shardCollected,
+  milestone,
+  phaseChanged,
+  graze,
+  secondEcho,
+  died,
+}
 
 enum DeathCause { echo, obstacle }
 
@@ -20,13 +27,21 @@ class GameEvent {
     this.x = 0,
     this.y = 0,
     this.value = 0,
+    this.multiplier = 1.0,
     this.cause,
   });
 
   final GameEventType type;
   final double x;
   final double y;
+
+  /// Points (shard / graze), milestone seconds, or phase index.
   final int value;
+
+  /// Combo multiplier (shard) or phase score multiplier (phase change).
+  final double multiplier;
+
+  /// Death cause, or which hazard was grazed.
   final DeathCause? cause;
 }
 
@@ -51,6 +66,9 @@ class ObstacleState {
 
   /// Seconds since it appeared.
   double age = 0;
+
+  /// Gameplay time of the last graze bonus from this obstacle.
+  double lastGrazeAt = -1e9;
 
   /// 0..1 telegraph progress; it is harmless until this reaches 1.
   double get armProgress {
@@ -90,10 +108,11 @@ class GameSession {
   final List<ObstacleState> obstacles = <ObstacleState>[];
   final List<ShardState> shards = <ShardState>[];
   final MutablePoint _echoPoint = MutablePoint();
+  final MutablePoint _echo2Point = MutablePoint();
 
   GameEventListener? onEvent;
 
-  /// QA/testing switch: when false nothing can kill the player.
+  /// QA/testing switch: when false nothing can kill the player (and no grazes).
   bool collisionsEnabled = true;
 
   // --- arena ---
@@ -113,6 +132,10 @@ class GameSession {
   int _staticCount = 0;
   int _movingCount = 0;
   bool _echoActive = false;
+  bool _echo2Active = false;
+  double _echo2BornAt = 0;
+  double _echoGrazeAt = -1e9;
+  double _echo2GrazeAt = -1e9;
   ({double w, double h, double top, double bottom, double left, double right})?
       _pendingLayout;
 
@@ -133,6 +156,25 @@ class GameSession {
   }
 
   bool get echoArmed => _echoActive && echoFade >= 1;
+
+  // Second (older) echo.
+  bool get echo2Active => _echo2Active;
+  double get echo2X => _echo2Point.x;
+  double get echo2Y => _echo2Point.y;
+
+  double get echo2Fade {
+    if (!_echo2Active) return 0;
+    final p = (gameTime - _echo2BornAt) / GameConstants.echoSpawnGraceSeconds;
+    return p < 0 ? 0 : (p > 1 ? 1 : p);
+  }
+
+  bool get echo2Armed => _echo2Active && echo2Fade >= 1;
+
+  /// Score multiplier of the current phase (x1.0 .. x2.0).
+  double get phaseMultiplier => GameConstants.phaseScoreMultipliers[phase.index];
+
+  /// Current shard-chain length (0 when no combo is running).
+  int get comboChain => scoring.comboChainAt(gameTime);
 
   double get playerRadius => GameConstants.playerRadius * unit;
   double get echoRadius => GameConstants.echoRadius * unit;
@@ -222,7 +264,14 @@ class GameSession {
     _staticCount = 0;
     _movingCount = 0;
     _echoActive = false;
+    _echo2Active = false;
+    _echo2BornAt = 0;
+    _echoGrazeAt = -1e9;
+    _echo2GrazeAt = -1e9;
     _echoPoint
+      ..x = 0
+      ..y = 0;
+    _echo2Point
       ..x = 0
       ..y = 0;
     deathCause = null;
@@ -298,7 +347,20 @@ class GameSession {
       history.sampleAt(gameTime - GameConstants.echoDelaySeconds, _echoPoint);
     }
 
-    final milestone = scoring.addSurvivalTime(dt);
+    if (!_echo2Active && _difficulty.secondEchoActiveAt(gameTime)) {
+      _echo2Active = true;
+      _echo2BornAt = gameTime;
+      onEvent?.call(const GameEvent(GameEventType.secondEcho));
+    }
+    if (_echo2Active) {
+      history.sampleAt(
+        gameTime - GameConstants.secondEchoDelaySeconds,
+        _echo2Point,
+      );
+    }
+
+    final milestone =
+        scoring.addSurvivalTime(dt, multiplier: phaseMultiplier);
     if (milestone > 0) {
       onEvent?.call(GameEvent(GameEventType.milestone, value: milestone));
     }
@@ -306,7 +368,14 @@ class GameSession {
     final newPhase = _difficulty.phaseAt(scoring.survivalSeconds);
     if (newPhase != phase) {
       phase = newPhase;
-      onEvent?.call(GameEvent(GameEventType.phaseChanged, value: phase.index));
+      if (phase.index >= DifficultyPhase.pressure.index) {
+        _spawn.holdObstacleSpawns(GameConstants.phaseBreatherSeconds);
+      }
+      onEvent?.call(GameEvent(
+        GameEventType.phaseChanged,
+        value: phase.index,
+        multiplier: phaseMultiplier,
+      ));
     }
 
     _updateEntities(dt);
@@ -380,6 +449,9 @@ class GameSession {
       echoX: _echoPoint.x,
       echoY: _echoPoint.y,
       minEchoDistance: GameConstants.spawnMinEchoDistance * unit,
+      echo2Active: _echo2Active,
+      echo2X: _echo2Point.x,
+      echo2Y: _echo2Point.y,
       others: _occupiedBodies(),
       gap: GameConstants.spawnGap * unit,
     );
@@ -458,13 +530,14 @@ class GameSession {
         s.radius,
       )) {
         shards.removeAt(i);
-        scoring.collectShard();
+        final points = scoring.collectShard(gameTime);
         _spawn.notifyShardCollected();
         onEvent?.call(GameEvent(
           GameEventType.shardCollected,
           x: s.x,
           y: s.y,
-          value: GameConstants.shardPoints,
+          value: points,
+          multiplier: points / GameConstants.shardPoints,
         ));
       }
     }
@@ -498,7 +571,72 @@ class GameSession {
           echoRadius,
         )) {
       _die(DeathCause.echo);
+      return;
     }
+
+    if (echo2Armed &&
+        CollisionSystem.circlesOverlap(
+          player.x,
+          player.y,
+          hitRadius,
+          _echo2Point.x,
+          _echo2Point.y,
+          echoRadius,
+        )) {
+      _die(DeathCause.echo);
+      return;
+    }
+
+    _checkGrazes(hitRadius);
+  }
+
+  /// Near-miss bonus: reward surviving right next to a hazard.
+  /// Each hazard has its own cooldown so hovering cannot be farmed.
+  void _checkGrazes(double hitRadius) {
+    final margin = GameConstants.grazeMargin * unit;
+    const cooldown = GameConstants.grazeCooldownSeconds;
+
+    for (final o in obstacles) {
+      if (!o.isArmed || gameTime - o.lastGrazeAt < cooldown) continue;
+      final reach = hitRadius + o.radius + margin;
+      if (_distSq(player.x, player.y, o.x, o.y) < reach * reach) {
+        o.lastGrazeAt = gameTime;
+        _award(GameConstants.grazeObstaclePoints, DeathCause.obstacle);
+      }
+    }
+
+    final echoReach = hitRadius + echoRadius + margin;
+    if (echoArmed &&
+        gameTime - _echoGrazeAt >= cooldown &&
+        _distSq(player.x, player.y, _echoPoint.x, _echoPoint.y) <
+            echoReach * echoReach) {
+      _echoGrazeAt = gameTime;
+      _award(GameConstants.grazeEchoPoints, DeathCause.echo);
+    }
+    if (echo2Armed &&
+        gameTime - _echo2GrazeAt >= cooldown &&
+        _distSq(player.x, player.y, _echo2Point.x, _echo2Point.y) <
+            echoReach * echoReach) {
+      _echo2GrazeAt = gameTime;
+      _award(GameConstants.grazeEchoPoints, DeathCause.echo);
+    }
+  }
+
+  void _award(int points, DeathCause hazard) {
+    scoring.addGraze(points);
+    onEvent?.call(GameEvent(
+      GameEventType.graze,
+      x: player.x,
+      y: player.y,
+      value: points,
+      cause: hazard,
+    ));
+  }
+
+  static double _distSq(double ax, double ay, double bx, double by) {
+    final dx = ax - bx;
+    final dy = ay - by;
+    return dx * dx + dy * dy;
   }
 
   void _die(DeathCause cause) {
