@@ -27,13 +27,22 @@ class SpawnManager {
 
   double _obstacleTimer = 0;
   double _shardTimer = 0;
+  double _holdLeft = 0;
 
   math.Random get random => _random;
 
   void reset() {
     _obstacleTimer = 0;
     _shardTimer = 0;
+    _holdLeft = 0;
   }
+
+  /// Blocks NEW obstacles for [seconds] (a breather). Shards are unaffected.
+  void holdObstacleSpawns(double seconds) {
+    if (seconds > _holdLeft) _holdLeft = seconds;
+  }
+
+  bool get isHolding => _holdLeft > 0;
 
   SpawnRequest update(
     double dt,
@@ -44,9 +53,10 @@ class SpawnManager {
   }) {
     _obstacleTimer += dt;
     _shardTimer += dt;
+    if (_holdLeft > 0) _holdLeft -= dt;
 
     final interval = _difficulty.obstacleSpawnInterval(survivalSeconds);
-    if (_obstacleTimer >= interval) {
+    if (_holdLeft <= 0 && _obstacleTimer >= interval) {
       if (staticCount < _difficulty.targetStaticObstacles(survivalSeconds)) {
         return SpawnRequest.staticObstacle;
       }
@@ -69,7 +79,6 @@ class SpawnManager {
     }
   }
 
-  /// No safe spot was found: retry shortly instead of every frame.
   void notifySpawnFailed(SpawnRequest request) {
     const back = GameConstants.spawnRetryBackoffSeconds;
     if (request == SpawnRequest.shard) {
@@ -79,13 +88,12 @@ class SpawnManager {
     }
   }
 
-  /// Called when the player picks up a shard, so the next one is delayed.
   void notifyShardCollected() => _shardTimer = 0;
 
   /// Returns a safe center point, or null if none was found in [attempts] tries.
   ///
   /// A point is safe when it is inside the arena, far enough from the player
-  /// and the (active) echo, and clear of every other body by [gap].
+  /// and from every active echo, and clear of every other body by [gap].
   ({double x, double y})? findPoint({
     required double radius,
     required double minX,
@@ -99,6 +107,9 @@ class SpawnManager {
     double echoX = 0,
     double echoY = 0,
     double minEchoDistance = 0,
+    bool echo2Active = false,
+    double echo2X = 0,
+    double echo2Y = 0,
     required List<CircleBody> others,
     required double gap,
     int attempts = 30,
@@ -119,6 +130,10 @@ class SpawnManager {
       }
       if (echoActive &&
           _distSq(x, y, echoX, echoY) < minEchoDistance * minEchoDistance) {
+        continue;
+      }
+      if (echo2Active &&
+          _distSq(x, y, echo2X, echo2Y) < minEchoDistance * minEchoDistance) {
         continue;
       }
       var clear = true;
