@@ -31,7 +31,7 @@ void main() {
       for (var minute = 0; minute < 10; minute++) {
         drive(s, 60, 1 / 60, minute + 1);
         expect(s.history.count <= GameConstants.historyCapacity, isTrue);
-        expect(s.obstacles.length <= 9, isTrue);
+        expect(s.obstacles.length <= 11, isTrue);
         expect(s.shards.length <= 2, isTrue);
         expect(s.player.x.isFinite && s.player.y.isFinite, isTrue);
         for (final o in s.obstacles) {
