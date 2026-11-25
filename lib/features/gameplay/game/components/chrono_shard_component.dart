@@ -5,6 +5,7 @@ import 'package:flame/components.dart';
 
 import '../../../../core/constants/color_constants.dart';
 import '../game_session.dart';
+import 'glow_sprite.dart';
 
 /// Draws all Chrono Shards: floating, rotating diamonds with a soft glow.
 class ChronoShardComponent extends Component {
@@ -15,9 +16,7 @@ class ChronoShardComponent extends Component {
   final GameSession session;
   double _t = 0;
 
-  final Paint _glow = Paint()
-    ..color = AppColors.chronoShard.withValues(alpha: 0.35)
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+  final GlowSprite _glow = GlowSprite(AppColors.chronoShard, peakAlpha: 0.5);
   final Paint _body = Paint()..color = AppColors.chronoShard;
 
   @override
@@ -33,7 +32,7 @@ class ChronoShardComponent extends Component {
       canvas.save();
       canvas.translate(s.x, s.y + bob);
       canvas.rotate(_t * 1.5 + i);
-      canvas.drawCircle(Offset.zero, s.radius * 2 * pulse, _glow);
+      _glow.draw(canvas, 0, 0, s.radius * 3.2 * pulse);
       final h = s.radius * 0.95;
       canvas.drawRect(Rect.fromLTRB(-h, -h, h, h), _body);
       canvas.restore();
