@@ -3,7 +3,8 @@ import '../../../../core/constants/game_constants.dart';
 enum DifficultyPhase { awakening, awareness, pressure, survival, chaos }
 
 /// Difficulty is a pure function of survival time: no random jumps.
-/// Values only ever stay equal or grow as time increases.
+/// Every value only ever stays equal or grows as time increases, and keeps
+/// growing slowly in Chaos so the game never plateaus.
 class DifficultyManager {
   const DifficultyManager();
 
@@ -15,7 +16,7 @@ class DifficultyManager {
     return DifficultyPhase.chaos;
   }
 
-  /// 0 -> 1 (first obstacle at 15s) -> 2..3 -> 3 -> 4..5.
+  /// 0 -> 1 (15s) -> 2..3 (30-60s) -> 3..4 (60-90s) -> 4..6 (90s+).
   int targetStaticObstacles(double t) {
     switch (phaseAt(t)) {
       case DifficultyPhase.awakening:
@@ -25,14 +26,14 @@ class DifficultyManager {
       case DifficultyPhase.pressure:
         return 2 + ((t - GameConstants.phasePressureStart) ~/ 15);
       case DifficultyPhase.survival:
-        return 3;
+        return 3 + ((t - GameConstants.phaseSurvivalStart) ~/ 20);
       case DifficultyPhase.chaos:
         final v = 4 + ((t - GameConstants.phaseChaosStart) ~/ 30);
-        return v > 5 ? 5 : v;
+        return v > 6 ? 6 : v;
     }
   }
 
-  /// Moving obstacles only appear from the Survival phase (60s+).
+  /// Moving obstacles appear from the Survival phase (60s+), up to 5.
   int targetMovingObstacles(double t) {
     switch (phaseAt(t)) {
       case DifficultyPhase.awakening:
@@ -43,7 +44,7 @@ class DifficultyManager {
         return 1 + ((t - GameConstants.phaseSurvivalStart) ~/ 15);
       case DifficultyPhase.chaos:
         final v = 2 + ((t - GameConstants.phaseChaosStart) ~/ 20);
-        return v > 4 ? 4 : v;
+        return v > 5 ? 5 : v;
     }
   }
 
@@ -54,18 +55,25 @@ class DifficultyManager {
     return 2;
   }
 
-  /// Design units / second.
+  /// Design units / second. Ramps 70 -> 130 (60-135s), then slowly to 190.
+  /// Always below the player's own speed (240), so it can be outrun.
   double movingObstacleSpeed(double t) {
-    final extra = (t - GameConstants.phaseSurvivalStart) * 0.8;
-    final clamped = extra < 0 ? 0.0 : (extra > 60 ? 60.0 : extra);
-    return 70 + clamped;
+    final first = ((t - GameConstants.phaseSurvivalStart) * 0.8).clamp(0.0, 60.0);
+    final late = ((t - 135) * 0.25).clamp(0.0, 60.0);
+    return 70 + first + late;
   }
 
-  /// Seconds between obstacle spawns.
-  double obstacleSpawnInterval(double t) =>
-      t < GameConstants.phaseChaosStart ? 4.0 : 3.0;
+  /// Seconds between obstacle spawns: 4.0 -> 3.0 (90s) -> 2.5 (150s).
+  double obstacleSpawnInterval(double t) {
+    if (t < GameConstants.phaseChaosStart) return 4.0;
+    if (t < 150) return 3.0;
+    return 2.5;
+  }
 
   /// Later shards are placed farther from the player (more risk to reach).
   double shardMinPlayerDistance(double t) =>
       t < GameConstants.phasePressureStart ? 80 : 140;
+
+  /// The second (older) echo joins from 120s.
+  bool secondEchoActiveAt(double t) => t >= GameConstants.secondEchoStartSeconds;
 }
