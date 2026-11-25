@@ -19,7 +19,11 @@ class GameConstants {
   /// The ghost replays the player's path exactly this many seconds later.
   static const double echoDelaySeconds = 3.0;
 
-  /// Extra history kept beyond the delay so interpolation never runs dry.
+  /// A SECOND, older echo joins in the Chaos phase and replays 6 s later.
+  static const double secondEchoDelaySeconds = 6.0;
+  static const double secondEchoStartSeconds = 120;
+
+  /// Extra history kept beyond the longest delay so interpolation never runs dry.
   static const double historyMarginSeconds = 0.5;
 
   /// Echo stays harmless for this long after appearing (fair-play fade-in).
@@ -29,8 +33,8 @@ class GameConstants {
   /// Minimum gap between recorded samples (caps memory at high refresh rates).
   static const double historyMinSampleInterval = 1 / 120;
 
-  /// (3.0 + 0.5) / (1/120) = 420 samples needed; 512 leaves safe slack.
-  static const int historyCapacity = 512;
+  /// (6.0 + 0.5) / (1/120) = 780 samples needed; 1024 leaves safe slack.
+  static const int historyCapacity = 1024;
 
   // --- Frame safety ---
   /// Any frame longer than this is clamped (e.g. after a lag spike).
@@ -62,10 +66,32 @@ class GameConstants {
   static const double spawnRetryBackoffSeconds = 0.25;
   static const double shardSpawnIntervalSeconds = 2.0;
 
+  /// After entering Pressure / Survival / Chaos, no NEW obstacles spawn for
+  /// this long: a short breather so the player can read the new phase.
+  static const double phaseBreatherSeconds = 4.0;
+
   // --- Scoring ---
   static const int survivalPointsPerSecond = 10;
   static const int shardPoints = 50;
   static const List<int> milestoneSeconds = [15, 30, 60, 90, 120];
+
+  /// Survival-point multiplier per phase (index = DifficultyPhase.index).
+  static const List<double> phaseScoreMultipliers = [1.0, 1.25, 1.5, 1.75, 2.0];
+
+  /// Shards collected within this many seconds of each other build a combo.
+  static const double comboWindowSeconds = 4.0;
+
+  /// Shard point multiplier for chain length 1, 2, 3, 4, 5+.
+  static const List<double> comboMultipliers = [1.0, 1.5, 2.0, 2.5, 3.0];
+
+  // --- Graze (near-miss) bonuses ---
+  /// How far beyond actual contact still counts as a near miss.
+  static const double grazeMargin = 16;
+  static const int grazeObstaclePoints = 10;
+  static const int grazeEchoPoints = 20;
+
+  /// Per-hazard cooldown, so hovering next to something cannot be farmed.
+  static const double grazeCooldownSeconds = 3.0;
 
   // --- Difficulty phase start times (seconds survived) ---
   static const double phaseAwarenessStart = 15;
