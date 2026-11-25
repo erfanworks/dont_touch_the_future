@@ -56,6 +56,19 @@ class FutureGame extends FlameGame {
 
   int _hintKey = -1;
   double _bannerLeft = 0;
+  final List<String> _bannerQueue = <String>[];
+
+  static const List<String> _phaseNames = [
+    'AWAKENING',
+    'AWARENESS',
+    'PRESSURE',
+    'SURVIVAL',
+    'CHAOS',
+  ];
+
+  /// 1.5 -> "1.5", 2.0 -> "2", 1.25 -> "1.25".
+  static String _fmtMultiplier(double m) =>
+      m.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
 
   // Device safe-area insets (logical px), supplied by GameplayScreen.
   double _insetTop = 0;
@@ -182,6 +195,7 @@ class FutureGame extends FlameGame {
     effects.reset();
     banner.value = '';
     _bannerLeft = 0;
+    _bannerQueue.clear();
     overlays.remove(pauseOverlay);
     overlays.remove(gameOverOverlay);
     overlays.add(hudOverlay);
@@ -198,10 +212,11 @@ class FutureGame extends FlameGame {
       case GameEventType.shardCollected:
         haptics.light();
         audio.collect();
+        final combo = event.multiplier > 1;
         effects.burst(
           event.x,
           event.y,
-          count: 14,
+          count: combo ? 22 : 14,
           speed: 140 * unit,
           color: EffectColor.shard,
           size: 2.6,
@@ -209,8 +224,22 @@ class FutureGame extends FlameGame {
         effects.spawnText(
           event.x,
           event.y - 16 * unit,
-          '+${event.value}',
+          combo
+              ? '+${event.value}  ×${_fmtMultiplier(event.multiplier)}'
+              : '+${event.value}',
           color: EffectColor.shard,
+          scale: combo ? 1.1 : 1,
+        );
+      case GameEventType.graze:
+        haptics.light();
+        effects.spawnText(
+          event.x,
+          event.y - 28 * unit,
+          '+${event.value} CLOSE',
+          color: event.cause == DeathCause.echo
+              ? EffectColor.echo
+              : EffectColor.white,
+          scale: 0.85,
         );
       case GameEventType.milestone:
         haptics.medium();
@@ -239,7 +268,15 @@ class FutureGame extends FlameGame {
           );
         }
       case GameEventType.phaseChanged:
-        break;
+        if (event.value >= 1 && event.value < _phaseNames.length) {
+          _showBanner(
+            '${_phaseNames[event.value]}  SCORE ×${_fmtMultiplier(event.multiplier)}',
+          );
+        }
+      case GameEventType.secondEcho:
+        haptics.medium();
+        audio.milestone();
+        _showBanner('SECOND ECHO');
       case GameEventType.died:
         haptics.heavy();
         audio.collision();
@@ -306,6 +343,10 @@ class FutureGame extends FlameGame {
   }
 
   void _showBanner(String text) {
+    if (_bannerLeft > 0) {
+      if (_bannerQueue.length < 3) _bannerQueue.add(text);
+      return;
+    }
     banner.value = text;
     _bannerLeft = 2.2;
   }
@@ -313,7 +354,13 @@ class FutureGame extends FlameGame {
   void _tickBanner(double dt) {
     if (_bannerLeft <= 0) return;
     _bannerLeft -= dt;
-    if (_bannerLeft <= 0) banner.value = '';
+    if (_bannerLeft > 0) return;
+    if (_bannerQueue.isNotEmpty) {
+      banner.value = _bannerQueue.removeAt(0);
+      _bannerLeft = 2.2;
+    } else {
+      banner.value = '';
+    }
   }
 
   // ------------------------------------------------------------ UI bridge
