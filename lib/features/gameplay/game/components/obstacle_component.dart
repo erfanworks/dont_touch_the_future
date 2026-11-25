@@ -4,6 +4,7 @@ import 'package:flame/components.dart';
 
 import '../../../../core/constants/color_constants.dart';
 import '../game_session.dart';
+import 'glow_sprite.dart';
 
 /// Draws every obstacle in one pass (no per-obstacle component churn).
 /// While telegraphing it is a faint ring; once armed it is solid red.
@@ -14,8 +15,7 @@ class ObstacleComponent extends Component {
 
   final GameSession session;
 
-  final Paint _glow = Paint()
-    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+  final GlowSprite _glow = GlowSprite(AppColors.danger, peakAlpha: 0.42);
   final Paint _body = Paint();
   final Paint _ring = Paint()
     ..style = PaintingStyle.stroke
@@ -28,9 +28,8 @@ class ObstacleComponent extends Component {
       final o = list[i];
       final c = Offset(o.x, o.y);
       if (o.isArmed) {
-        _glow.color = AppColors.danger.withValues(alpha: 0.4);
+        _glow.draw(canvas, o.x, o.y, o.radius * 2.2);
         _body.color = AppColors.danger.withValues(alpha: 0.92);
-        canvas.drawCircle(c, o.radius * 1.5, _glow);
         canvas.drawCircle(c, o.radius, _body);
       } else {
         final p = o.armProgress;
